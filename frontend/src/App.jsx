@@ -1,7 +1,18 @@
+import { Routes, Route } from 'react-router-dom'
+import Landing from './pages/Landing'
+
 export default function App() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-      <h1 className="text-4xl font-bold">SocialFlow AI</h1>
-    </div>
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route
+        path="/app"
+        element={
+          <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-300">
+            The application arrives in Step 3.
+          </div>
+        }
+      />
+    </Routes>
   )
 }
