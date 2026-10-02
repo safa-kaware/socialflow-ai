@@ -1,0 +1,406 @@
+{
+  "name": "SocialFlow - Generate and Review",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "socialflow-generate",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e94c9c75-5b88-4da6-9719-3b6ee635fbee",
+      "name": "Webhook",
+      "webhookId": "c0202048-d94c-46d9-947e-4bbee45b636f",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "hrHjZiewR4L1jrnp",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body || {};\nconst clean = (v, d) => String(v || d).trim();\nconst topic = String(b.topic || '').trim();\n\nreturn [{\n  json: {\n    valid: topic.length > 0 && topic.length <= 300,\n    error: topic.length === 0 ? 'Topic is required'\n         : topic.length > 300 ? 'Topic is too long (max 300 characters)' : '',\n    topic,\n    platform: clean(b.platform, 'Telegram'),\n    contentType: clean(b.contentType, 'Educational'),\n    tone: clean(b.tone, 'Professional'),\n    targetAudience: clean(b.targetAudience, 'General audience'),\n    length: clean(b.length, 'Medium'),\n    keywords: clean(b.keywords, 'none'),\n    attempt: 0,\n    feedback: '',\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f72e4f2a-a91a-46b9-855b-595899433e8d",
+      "name": "validate input",
+      "retryOnFail": false,
+      "executeOnce": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst platformRules = {\n  Telegram: 'Telegram channel post. Plain text only, no markdown. Short paragraphs. Emojis allowed sparingly.',\n  Discord: 'Discord community announcement. Plain text. Conversational, friendly community feel.',\n}[d.platform] || 'General social media post.';\n\nconst lengthGuide = {\n  Short: 'about 300 characters',\n  Medium: 'about 600 characters',\n  Long: 'about 900 characters',\n}[d.length] || 'about 600 characters';\n\nconst retry = d.feedback\n  ? `\\n\\nA previous draft was reviewed. Fix these problems in the new version:\\n${d.feedback}`\n  : '';\n\nconst prompt = `You are an expert social media content strategist.\n\nCreate high-quality social media content using the following information.\n\nTopic: ${d.topic}\nPlatform: ${d.platform} (${platformRules})\nContent Type: ${d.contentType}\nTone: ${d.tone}\nTarget Audience: ${d.targetAudience}\nLength: ${lengthGuide}\nKeywords: ${d.keywords}\n\nRequirements:\n1. Create an engaging opening hook.\n2. Provide useful information.\n3. Keep the language natural and readable.\n4. Match the requested tone.\n5. Match the target platform.\n6. Avoid unsupported claims.\n7. Do not invent statistics.\n8. Avoid repetitive phrases.\n9. Include relevant hashtags.\n10. Include a suitable call-to-action where appropriate.\n11. Return JSON only.${retry}\n\nReturn exactly this JSON shape:\n{\"title\": \"\", \"hook\": \"\", \"content\": \"\", \"hashtags\": [], \"callToAction\": \"\"}`;\n\nreturn [{ json: { ...d, prompt } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "ead89106-36e3-47a6-b27e-91ec9266201b",
+      "name": "Build prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'openai/gpt-oss-120b',\n  temperature: 0.7,\n  response_format: { type: 'json_object' },\n  messages: [{ role: 'user', content: $json.prompt }]\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        848,
+        -112
+      ],
+      "id": "b79c5c2f-b3a9-4db8-80f5-57586f5266ea",
+      "name": "Groq generate",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8b5IEOaJJ3PTPtMf",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Build prompt').first(0, $runIndex).json;\nconst raw = $input.first().json.choices?.[0]?.message?.content || '';\n\nlet draft;\ntry {\n  draft = JSON.parse(raw.replace(/^```(?:json)?\\s*|\\s*```$/g, '').trim());\n} catch (e) {\n  throw new Error('Groq returned invalid JSON');\n}\n\nfor (const k of ['title', 'hook', 'content', 'hashtags', 'callToAction']) {\n  if (draft[k] === undefined) throw new Error('Draft is missing field: ' + k);\n}\nif (!Array.isArray(draft.hashtags)) throw new Error('hashtags must be an array');\nif (!String(draft.content).trim()) throw new Error('Draft content is empty');\n\nconst reviewPrompt = `You are a strict social media content reviewer.\nEvaluate this ${prev.platform} post about \"${prev.topic}\" (tone: ${prev.tone}, audience: ${prev.targetAudience}).\n\nPost:\n${JSON.stringify(draft)}\n\nCheck: grammar, clarity, relevance, engagement, tone, platform suitability, hashtags, repetition, unsupported claims, length.\nScores are 0 to 100. Be honest and critical; do not inflate scores.\n\nReturn exactly this JSON shape:\n{\"score\": 0, \"grammarScore\": 0, \"clarityScore\": 0, \"engagementScore\": 0, \"relevanceScore\": 0, \"issues\": [], \"suggestions\": []}`;\n\nreturn [{ json: { ...prev, draft, reviewPrompt } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        -96
+      ],
+      "id": "565a0850-5d46-4c3c-9477-a7fefd254924",
+      "name": "Parse draft"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'openai/gpt-oss-120b',\n  temperature: 0.7,\n  response_format: { type: 'json_object' },\n  messages: [{ role: 'user', content: $json.reviewPrompt }]\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1152,
+        -96
+      ],
+      "id": "0e13ba78-f981-4f88-8276-ca4a9d14541c",
+      "name": "Groq review",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "8b5IEOaJJ3PTPtMf",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Parse draft').first(0, $runIndex).json;\nconst raw = $input.first().json.choices?.[0]?.message?.content || '';\n\nlet r;\ntry {\n  r = JSON.parse(raw.replace(/^```(?:json)?\\s*|\\s*```$/g, '').trim());\n} catch (e) {\n  throw new Error('Review returned invalid JSON');\n}\n\nconst num = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));\n\nconst review = {\n  score: num(r.score),\n  grammarScore: num(r.grammarScore),\n  clarityScore: num(r.clarityScore),\n  engagementScore: num(r.engagementScore),\n  relevanceScore: num(r.relevanceScore),\n  issues: Array.isArray(r.issues) ? r.issues : [],\n  suggestions: Array.isArray(r.suggestions) ? r.suggestions : [],\n};\n\nconst attempt = $runIndex;\nconst passed = review.score >= 80;\nconst done = passed || attempt >= 2;\n\nreturn [{ json: { ...prev, attempt, review, passed, done } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -96
+      ],
+      "id": "a194c571-8e13-4856-bb7e-8ef7bc15d72e",
+      "name": "Parse review"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ed9e7129-8eeb-4fc8-8ee5-5721199beda1",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1520,
+        -96
+      ],
+      "id": "27877af8-4f9f-4faa-8802-0bab6149263f",
+      "name": "IF done"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nreturn [{\n  json: {\n    topic: d.topic,\n    platform: d.platform,\n    contentType: d.contentType,\n    tone: d.tone,\n    targetAudience: d.targetAudience,\n    length: d.length,\n    keywords: d.keywords,\n    feedback: [...d.review.issues, ...d.review.suggestions].join('\\n'),\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        112
+      ],
+      "id": "b6455532-74ee-415e-8d3d-08a152e98262",
+      "name": "Prepare retry"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, draft: $json.draft, review: $json.review, passed: $json.passed, attempts: $json.attempt + 1 } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1744,
+        -112
+      ],
+      "id": "8f660d3b-7cf9-4b4a-96f7-967594ce28ed",
+      "name": "Respond success"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.error } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1152,
+        128
+      ],
+      "id": "b40a29c5-c0f3-4f8b-a6c2-7656d6e37b61",
+      "name": "Respond 400"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "784d80ec-f6ae-4ba4-ab44-aac6d8ce837e",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "8e843dee-ccc9-45f6-a0eb-65bff8fc2f53",
+              "leftValue": true,
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "7efc5e3b-e94b-4046-9d15-eac9c78b3cc6",
+      "name": "IF valid"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "validate input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate input": {
+      "main": [
+        [
+          {
+            "node": "IF valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build prompt": {
+      "main": [
+        [
+          {
+            "node": "Groq generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq generate": {
+      "main": [
+        [
+          {
+            "node": "Parse draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse draft": {
+      "main": [
+        [
+          {
+            "node": "Groq review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq review": {
+      "main": [
+        [
+          {
+            "node": "Parse review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse review": {
+      "main": [
+        [
+          {
+            "node": "IF done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF done": {
+      "main": [
+        [
+          {
+            "node": "Respond success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare retry": {
+      "main": [
+        [
+          {
+            "node": "Build prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF valid": {
+      "main": [
+        [
+          {
+            "node": "Build prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "8e32532a-8184-46b4-b139-847ae90493e5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3dc2a547aea11d90bed7029adae499e932a0a721777511ffa2056120e6180d06"
+  },
+  "nodeGroups": [],
+  "id": "DsxqBvjohe3qRZll",
+  "tags": []
+}

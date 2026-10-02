@@ -1,0 +1,159 @@
+{
+  "name": "SocialFlow - Publish to Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "socialflow-publish",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        -16
+      ],
+      "id": "848f90b0-6e4b-4ac6-b1d2-69352b9f5450",
+      "name": "SocialFlow - Publish to Telegram",
+      "webhookId": "e27daa66-70ba-4626-a57a-5b471070ab8d",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "hrHjZiewR4L1jrnp",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body || {};\nconst d = b.draft || {};\n\nif (!String(d.content || '').trim()) {\n  throw new Error('No content to publish');\n}\n\nconst tags = Array.isArray(d.hashtags) ? d.hashtags.join(' ') : '';\nconst parts = [d.title, d.content, d.callToAction, tags]\n  .map((s) => String(s || '').trim())\n  .filter(Boolean);\n\nconst text = parts.join('\\n\\n').slice(0, 4000);\n\nreturn [{ json: { text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "76910d03-7495-4252-8771-8b4977dd9606",
+      "name": "Prepare message"
+    },
+    {
+      "parameters": {
+        "chatId": "@taviqu",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "9341d487-6ee2-4340-a08c-2b1897fd44ef",
+      "name": "Send to Telegram",
+      "webhookId": "06f8ed77-05df-4bf6-a2a2-2c34c1c29e4a",
+      "retryOnFail": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "z7KblsABqLnVY8Sj",
+          "name": "Telegram account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, platform: 'Telegram', messageId: $json.result?.message_id ?? $json.message_id ?? null } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        -80
+      ],
+      "id": "e8a4a216-9d6c-432a-bedc-8c777d1a628b",
+      "name": "Respond published"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, platform: 'Telegram', error: 'Telegram publishing failed', details: $json.error } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        96
+      ],
+      "id": "6db00af8-6aab-47a0-9503-c557cd010fe3",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "SocialFlow - Publish to Telegram": {
+      "main": [
+        [
+          {
+            "node": "Prepare message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare message": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Telegram": {
+      "main": [
+        [
+          {
+            "node": "Respond published",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "9429dbc0-c201-4e0b-8f10-670c962bc1db",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3dc2a547aea11d90bed7029adae499e932a0a721777511ffa2056120e6180d06"
+  },
+  "nodeGroups": [],
+  "id": "ixAJqeWdUOhR6tRZ",
+  "tags": []
+}
