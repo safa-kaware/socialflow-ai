@@ -8,7 +8,7 @@ const features = [
   { icon: CalendarClock, title: 'Scheduling', text: 'Plan posts on a calendar and let automation send them on time.' },
   { icon: TrendingUp, title: 'Analytics', text: 'Track generated, approved, scheduled and published posts.' },
   { icon: Workflow, title: 'n8n Automation', text: 'Modular workflows handle generation, review, retries and errors.' },
-  { icon: Share2, title: 'Multi-platform', text: 'Telegram, Instagram and LinkedIn, built behind a common adapter design.' },
+ { icon: Share2, title: 'Multi-platform', text: 'Telegram and Discord first, built behind a common adapter design so more platforms can follow.' },
 ]
 
 export default function Features() {

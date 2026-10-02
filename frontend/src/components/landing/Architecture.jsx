@@ -27,13 +27,12 @@ export default function Architecture() {
         <Arrow />
         <Node title="n8n" sub="Workflows: generate, review, approve, schedule, publish" accent />
         <Arrow />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <Node title="Groq" sub="AI" />
-          <Node title="Supabase" sub="Data" />
-          <Node title="Telegram" />
-          <Node title="Instagram" />
-          <Node title="LinkedIn" />
-        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Node title="Groq" sub="AI" />
+        <Node title="Supabase" sub="Data" />
+        <Node title="Telegram" />
+        <Node title="Discord" />
+</div>
       </div>
     </Section>
   )

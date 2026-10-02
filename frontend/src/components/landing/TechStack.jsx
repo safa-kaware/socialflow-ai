@@ -8,7 +8,7 @@ const stack = [
   { name: 'Supabase', role: 'PostgreSQL database' },
   { name: 'REST APIs', role: 'Backend layer' },
   { name: 'Telegram Bot API', role: 'Publishing' },
-  { name: 'Instagram Graph API', role: 'Publishing' },
+ { name: 'Discord Webhooks', role: 'Publishing' },
   { name: 'LinkedIn API', role: 'Publishing' },
   { name: 'Vercel', role: 'Hosting' },
   { name: 'GitHub', role: 'Source control' },
