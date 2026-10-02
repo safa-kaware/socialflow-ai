@@ -14,7 +14,7 @@ export default function Queue() {
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {Object.entries(STATUS).map(([key, s]) => {
+       {Object.entries(STATUS).map(([key]) => {
           const items = posts.filter((p) => p.status === key)
           return (
             <div key={key} className="w-72 shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4">

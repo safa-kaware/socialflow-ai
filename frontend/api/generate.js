@@ -1,3 +1,4 @@
+
 export const config = { maxDuration: 60 };
 
 const PLATFORMS = ['Telegram', 'Discord'];
