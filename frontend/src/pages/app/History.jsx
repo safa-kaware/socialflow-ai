@@ -61,7 +61,7 @@ export default function History() {
         <select className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)}>
           <option value="all">All platforms</option>
           <option value="Telegram">Telegram</option>
-          <option value="Discord">Discord</option>
+          
         </select>
 
         <input

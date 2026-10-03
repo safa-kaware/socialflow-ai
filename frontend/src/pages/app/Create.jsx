@@ -130,9 +130,8 @@ export default function Create() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Platform">
               <select className={inputCls} value={form.platform} onChange={set('platform')}>
-                <option value="Telegram">Telegram</option>
-                <option value="Discord" disabled>Discord (coming soon)</option>
-              </select>
+  <option value="Telegram">Telegram</option>
+</select>
             </Field>
             <Field label="Length">
               <select className={inputCls} value={form.length} onChange={set('length')}>

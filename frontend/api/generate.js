@@ -1,7 +1,7 @@
 
 export const config = { maxDuration: 60 };
 
-const PLATFORMS = ['Telegram', 'Discord'];
+const PLATFORMS = ['Telegram'];
 const CONTENT_TYPES = ['Educational', 'Thought Leadership', 'Promotional', 'Announcement', 'Tips', 'Question', 'Story', 'Motivational'];
 const TONES = ['Professional', 'Friendly', 'Inspirational', 'Technical', 'Conversational', 'Bold'];
 const LENGTHS = ['Short', 'Medium', 'Long'];

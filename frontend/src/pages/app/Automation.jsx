@@ -7,7 +7,7 @@ const components = [
   'Approval',
   'Scheduling',
   'Telegram publishing',
-  'Discord publishing',
+  
 ]
 
 const pipeline = ['Trigger', 'Generate', 'Review', 'Decision', 'Approve', 'Schedule', 'Publish']

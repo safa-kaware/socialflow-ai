@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Code } from 'lucide-react'
 import { GITHUB_URL, APP_PATH } from '../../config'
 
-const platforms = ['Telegram', 'Discord']
+const platforms = ['Telegram']
 
 export default function Hero() {
   return (

@@ -39,7 +39,7 @@ const byStatus = Object.entries(STATUS)
   .map(([key, s]) => ({ name: s.label, value: count(key), color: COLORS[key] }))
   .filter((d) => d.value > 0)
 
-const byPlatform = ['Telegram', 'Discord'].map((name) => ({
+const byPlatform = ['Telegram'].map((name) => ({
   name,
   posts: posts.filter((p) => p.platform === name).length,
 }))

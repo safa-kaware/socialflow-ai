@@ -1,4 +1,4 @@
-const platforms = ['Telegram', 'Discord']
+const platforms = ['Telegram']
 
 const rules = [
   { label: 'Auto-approve score threshold', value: '80' },
