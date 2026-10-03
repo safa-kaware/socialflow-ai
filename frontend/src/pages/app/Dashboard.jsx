@@ -1,14 +1,26 @@
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
-import { posts, weeklyActivity } from '../../data/mockData'
+import { posts } from '../../data/posts'
 import StatusBadge from '../../components/app/StatusBadge'
 
 const count = (status) => posts.filter((p) => p.status === status).length
 const scored = posts.filter((p) => p.score !== null)
 const avgScore = scored.length
   ? Math.round(scored.reduce((sum, p) => sum + p.score, 0) / scored.length)
-  : 0
+  : null
+
+const dayKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const weeklyActivity = Array.from({ length: 7 }, (_, i) => {
+  const d = new Date()
+  d.setDate(d.getDate() - (6 - i))
+  return {
+    day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+    generated: posts.filter((p) => p.createdAt === dayKey(d)).length,
+  }
+})
 
 const stats = [
   { label: 'Total posts', value: posts.length },
@@ -17,7 +29,7 @@ const stats = [
   { label: 'Approved', value: count('approved') },
   { label: 'Scheduled', value: count('scheduled') },
   { label: 'Published', value: count('published') },
-  { label: 'Avg AI score', value: avgScore },
+  { label: 'Avg AI score', value: avgScore ?? '-' },
 ]
 
 export default function Dashboard() {
@@ -43,7 +55,7 @@ export default function Dashboard() {
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="font-semibold text-white">Activity this week</h2>
+        <h2 className="font-semibold text-white">Posts created in the last 7 days</h2>
         <div className="mt-4 h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={weeklyActivity}>
@@ -51,9 +63,7 @@ export default function Dashboard() {
               <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
               <YAxis stroke="#94a3b8" fontSize={12} allowDecimals={false} />
               <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #ffffff20', borderRadius: 8 }} />
-              <Legend />
               <Bar dataKey="generated" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="published" fill="#d946ef" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -82,6 +92,11 @@ export default function Dashboard() {
               ))}
             </tbody>
           </table>
+          {recent.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-400">
+              No posts yet. Posts you create will appear here.
+            </p>
+          )}
         </div>
       </div>
     </div>

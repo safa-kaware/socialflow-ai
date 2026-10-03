@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { posts, STATUS } from '../../data/mockData'
+import { posts } from '../../data/posts'
+import { STATUS } from '../../data/status'
 import StatusBadge from '../../components/app/StatusBadge'
 import PostDetailsModal from '../../components/app/PostDetailsModal'
 

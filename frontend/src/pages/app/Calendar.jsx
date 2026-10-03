@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { posts } from '../../data/mockData'
+import { posts } from '../../data/posts'
 import PostDetailsModal from '../../components/app/PostDetailsModal'
 
 const pad = (n) => String(n).padStart(2, '0')

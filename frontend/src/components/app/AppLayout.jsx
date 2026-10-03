@@ -17,11 +17,7 @@ export default function AppLayout() {
           <button className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu size={22} />
           </button>
-          {!onCreate && (
-            <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs text-amber-300">
-              Sample data · not connected yet
-            </span>
-          )}
+          <h1 className="text-lg font-semibold text-white">{onCreate ? 'Create post' : 'Dashboard'}</h1>
           <div className="ml-auto text-sm text-slate-400">Demo user</div>
         </header>
 

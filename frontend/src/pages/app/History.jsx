@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search } from 'lucide-react'
-import { posts, STATUS } from '../../data/mockData'
+import { posts } from '../../data/posts'
+import { STATUS } from '../../data/status'
 import StatusBadge from '../../components/app/StatusBadge'
 import PostDetailsModal from '../../components/app/PostDetailsModal'
 
@@ -85,7 +86,9 @@ export default function History() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         {filtered.length === 0 ? (
-          <p className="py-10 text-center text-slate-400">No posts match these filters.</p>
+          <p className="py-10 text-center text-slate-400">
+  {posts.length === 0 ? 'No posts yet. Posts you create will appear here.' : 'No posts match these filters.'}
+</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

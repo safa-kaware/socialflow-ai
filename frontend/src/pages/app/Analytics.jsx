@@ -2,7 +2,8 @@ import {
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
-import { posts, STATUS } from '../../data/mockData'
+import { posts } from '../../data/posts'
+import { STATUS } from '../../data/status'
 
 const COLORS = {
   draft: '#94a3b8', needs_review: '#fbbf24', approved: '#34d399', scheduled: '#38bdf8',
@@ -22,7 +23,7 @@ const stats = [
   { label: 'Rejected', value: count('rejected') },
   { label: 'Scheduled', value: count('scheduled') },
   { label: 'Published', value: count('published') },
-  { label: 'Avg AI score', value: avgScore },
+  { label: 'Avg AI score', value: scored.length ? avgScore : '-' },
 ]
 
 const overTime = Object.entries(
@@ -52,6 +53,7 @@ function Card({ title, children }) {
   )
 }
 
+
 export default function Analytics() {
   return (
     <div className="space-y-8">
@@ -71,6 +73,11 @@ export default function Analytics() {
       <p className="-mt-4 text-xs text-slate-500">
         AI score is an AI-generated estimate. A "regenerated" count is added in Step 9, once regeneration exists to be counted.
       </p>
+      {posts.length === 0 && (
+  <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+    No data yet. Charts fill in once posts are saved.
+  </p>
+)}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Posts created over time">

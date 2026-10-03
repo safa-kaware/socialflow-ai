@@ -1,4 +1,4 @@
-import { STATUS } from '../../data/mockData'
+import { STATUS } from '../../data/status'
 
 export default function StatusBadge({ status }) {
   const s = STATUS[status]
