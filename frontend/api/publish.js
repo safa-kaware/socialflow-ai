@@ -1,5 +1,5 @@
-
 import { timingSafeEqual } from 'node:crypto';
+import { db, sessionOf, isUuid } from '../lib/db.js';
 
 const fail = (res, status, error, extra = {}) =>
   res.status(status).json({ ok: false, error, ...extra });
@@ -40,6 +40,33 @@ export default async function handler(req, res) {
   };
   if (!draft.content) return fail(res, 400, 'There is no content to publish');
 
+  const supabase = db();
+  const sid = sessionOf(req);
+  const postId = isUuid(b.postId) ? b.postId : null;
+  const track = Boolean(supabase && sid && postId);
+
+  const mark = async (patch) => {
+    if (!track) return;
+    await supabase
+      .from('posts')
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', postId)
+      .eq('session_id', sid);
+  };
+
+  if (track) {
+    const { data: row } = await supabase
+      .from('posts')
+      .select('status')
+      .eq('id', postId)
+      .eq('session_id', sid)
+      .maybeSingle();
+    if (!row) return fail(res, 404, 'Post not found');
+    if (!['approved', 'failed'].includes(row.status)) {
+      return fail(res, 409, 'Approve the post before publishing');
+    }
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 25000);
 
@@ -54,14 +81,14 @@ export default async function handler(req, res) {
       signal: controller.signal,
     });
 
-    let data = null;
-    try {
-      data = await r.json();
-    } catch {
-      data = null;
-    }
+    const data = await r.json().catch(() => null);
 
     if (data && data.ok === true) {
+      await mark({
+        status: 'published',
+        external_post_id: data.messageId == null ? null : String(data.messageId),
+        error_message: null,
+      });
       return res.status(200).json({
         ok: true,
         platform: data.platform || 'Telegram',
@@ -70,10 +97,17 @@ export default async function handler(req, res) {
     }
 
     const details = typeof data?.details === 'string' ? data.details.slice(0, 200) : undefined;
+    await mark({ status: 'failed', error_message: details || 'Publishing failed' });
     return fail(res, 502, 'Publishing failed', details ? { details } : {});
   } catch (e) {
-    if (e.name === 'AbortError') return fail(res, 504, 'Publishing took too long');
-    return fail(res, 502, 'Could not reach the automation service');
+    const timedOut = e.name === 'AbortError';
+    await mark({
+      status: 'failed',
+      error_message: timedOut ? 'Publishing took too long' : 'Could not reach the automation service',
+    });
+    return timedOut
+      ? fail(res, 504, 'Publishing took too long')
+      : fail(res, 502, 'Could not reach the automation service');
   } finally {
     clearTimeout(timer);
   }
