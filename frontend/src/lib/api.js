@@ -1,8 +1,25 @@
-async function postJson(url, body) {
+const SESSION_KEY = 'socialflow_session'
+let fallbackId
+
+function sessionId() {
+  try {
+    let id = localStorage.getItem(SESSION_KEY)
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem(SESSION_KEY, id)
+    }
+    return id
+  } catch {
+    fallbackId ??= crypto.randomUUID()
+    return fallbackId
+  }
+}
+
+async function request(url, { method = 'GET', body } = {}) {
   const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    method,
+    headers: { 'Content-Type': 'application/json', 'x-session-id': sessionId() },
+    body: body ? JSON.stringify(body) : undefined,
   })
 
   const data = await res.json().catch(() => null)
@@ -14,5 +31,9 @@ async function postJson(url, body) {
   return data
 }
 
-export const generatePost = (input) => postJson('/api/generate', input)
-export const publishPost = ({ draft, passcode }) => postJson('/api/publish', { draft, passcode })
+export const generatePost = (input) => request('/api/generate', { method: 'POST', body: input })
+export const publishPost = ({ draft, passcode, postId }) =>
+  request('/api/publish', { method: 'POST', body: { draft, passcode, postId } })
+export const listPosts = async () => (await request('/api/posts')).posts
+export const updatePost = ({ id, action, draft }) =>
+  request('/api/posts', { method: 'POST', body: { id, action, draft } })

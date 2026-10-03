@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Sparkles, Loader2, AlertCircle, Check, Pencil, RefreshCw, X, Send } from 'lucide-react'
-import { generatePost, publishPost } from '../../lib/api'
+import { generatePost, publishPost, updatePost } from '../../lib/api'
 import TelegramPreview from '../../components/app/TelegramPreview'
 import ReviewPanel from '../../components/app/ReviewPanel'
 import DraftEditor from '../../components/app/DraftEditor'
@@ -34,9 +34,12 @@ export default function Create() {
     length: 'Medium',
   })
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [draft, setDraft] = useState(null)
+  const [postId, setPostId] = useState(null)
+  const [saveNote, setSaveNote] = useState('')
   const [edited, setEdited] = useState(false)
   const [stage, setStage] = useState('review')
   const [regenCount, setRegenCount] = useState(0)
@@ -46,6 +49,20 @@ export default function Create() {
   const [published, setPublished] = useState(null)
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  async function save(action, draftArg) {
+    if (!postId) return true
+    setSaving(true)
+    try {
+      await updatePost({ id: postId, action, draft: draftArg })
+      return true
+    } catch (err) {
+      setError(`Could not save: ${err.message}`)
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function run(isRegen) {
     const topic = form.topic.trim()
@@ -59,11 +76,18 @@ export default function Create() {
     if (!isRegen) {
       setResult(null)
       setDraft(null)
+      setPostId(null)
     }
     try {
-      const data = await generatePost({ ...form, topic })
+      const data = await generatePost({
+        ...form,
+        topic,
+        replaces: isRegen ? postId : undefined,
+      })
       setResult(data)
       setDraft(data.draft)
+      setPostId(data.postId)
+      setSaveNote(data.saved ? '' : 'This draft could not be saved to the database.')
       setEdited(false)
       setStage('review')
       setPublished(null)
@@ -83,7 +107,7 @@ export default function Create() {
     setPublishError('')
     setPublishing(true)
     try {
-      const data = await publishPost({ draft, passcode })
+      const data = await publishPost({ draft, passcode, postId })
       setPublished(data)
       setStage('published')
       setPasscode('')
@@ -97,6 +121,8 @@ export default function Create() {
   function startOver() {
     setResult(null)
     setDraft(null)
+    setPostId(null)
+    setSaveNote('')
     setEdited(false)
     setStage('review')
     setRegenCount(0)
@@ -106,6 +132,7 @@ export default function Create() {
   }
 
   const regenLeft = MAX_REGENERATIONS - regenCount
+  const busy = loading || saving
 
   return (
     <div className="space-y-6">
@@ -130,8 +157,8 @@ export default function Create() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Platform">
               <select className={inputCls} value={form.platform} onChange={set('platform')}>
-  <option value="Telegram">Telegram</option>
-</select>
+                <option value="Telegram">Telegram</option>
+              </select>
             </Field>
             <Field label="Length">
               <select className={inputCls} value={form.length} onChange={set('length')}>
@@ -165,7 +192,7 @@ export default function Create() {
 
           <button
             onClick={() => run(false)}
-            disabled={loading}
+            disabled={busy}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-3 font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
@@ -188,7 +215,7 @@ export default function Create() {
           {result && draft && stage === 'rejected' && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
               <p className="font-semibold text-white">Draft rejected</p>
-              <p className="mt-1 text-sm text-slate-400">It was not published and has not been saved.</p>
+              <p className="mt-1 text-sm text-slate-400">It was not published and is marked as rejected in your history.</p>
               <button onClick={startOver} className={`${btn} mt-4 bg-indigo-500 text-white hover:bg-indigo-400`}>
                 Start over
               </button>
@@ -211,10 +238,12 @@ export default function Create() {
           {result && draft && stage === 'editing' && (
             <DraftEditor
               draft={draft}
-              onSave={(next) => {
-                setDraft(next)
-                setEdited(true)
-                setStage('review')
+              onSave={async (next) => {
+                if (await save('edit', next)) {
+                  setDraft(next)
+                  setEdited(true)
+                  setStage('review')
+                }
               }}
               onCancel={() => setStage('review')}
             />
@@ -224,6 +253,10 @@ export default function Create() {
             <>
               <TelegramPreview draft={draft} />
 
+              {saveNote && (
+                <p className="rounded-lg bg-amber-500/10 p-3 text-xs text-amber-300">{saveNote}</p>
+              )}
+
               {edited && (
                 <p className="rounded-lg bg-amber-500/10 p-3 text-xs text-amber-300">
                   You edited this post after the AI review. The score below applies to the original draft.
@@ -232,21 +265,33 @@ export default function Create() {
 
               {stage === 'review' && (
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={() => setStage('approved')} className={`${btn} bg-emerald-500 text-white hover:bg-emerald-400`}>
+                  <button
+                    onClick={async () => { if (await save('approve')) setStage('approved') }}
+                    disabled={busy}
+                    className={`${btn} bg-emerald-500 text-white hover:bg-emerald-400`}
+                  >
                     <Check size={16} /> Approve
                   </button>
-                  <button onClick={() => setStage('editing')} className={`${btn} border border-white/15 text-white hover:bg-white/5`}>
+                  <button
+                    onClick={() => setStage('editing')}
+                    disabled={busy}
+                    className={`${btn} border border-white/15 text-white hover:bg-white/5`}
+                  >
                     <Pencil size={16} /> Edit
                   </button>
                   <button
                     onClick={() => run(true)}
-                    disabled={loading || regenLeft <= 0}
+                    disabled={busy || regenLeft <= 0}
                     className={`${btn} border border-white/15 text-white hover:bg-white/5`}
                   >
                     {loading ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
                     Regenerate ({Math.max(regenLeft, 0)} left)
                   </button>
-                  <button onClick={() => setStage('rejected')} className={`${btn} border border-rose-400/30 text-rose-300 hover:bg-rose-500/10`}>
+                  <button
+                    onClick={async () => { if (await save('reject')) setStage('rejected') }}
+                    disabled={busy}
+                    className={`${btn} border border-rose-400/30 text-rose-300 hover:bg-rose-500/10`}
+                  >
                     <X size={16} /> Reject
                   </button>
                 </div>
@@ -256,8 +301,8 @@ export default function Create() {
                 <div className="space-y-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5">
                   <p className="font-semibold text-emerald-300">Approved</p>
                   <p className="text-xs text-slate-400">
-                    Approvals are not saved yet; saving arrives with the database step. Publishing is
-                    protected by a passcode so only the owner can post to the live channel.
+                    Your approval is saved. Publishing is protected by a passcode so only the owner
+                    can post to the live channel.
                   </p>
                   <input
                     type="password"
@@ -273,11 +318,24 @@ export default function Create() {
                     </p>
                   )}
                   <div className="flex gap-3">
-                    <button onClick={onPublish} disabled={publishing} className={`${btn} bg-indigo-500 text-white hover:bg-indigo-400`}>
+                    <button
+                      onClick={onPublish}
+                      disabled={publishing || saving}
+                      className={`${btn} bg-indigo-500 text-white hover:bg-indigo-400`}
+                    >
                       {publishing ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
                       {publishing ? 'Publishing...' : 'Publish to Telegram'}
                     </button>
-                    <button onClick={() => { setStage('review'); setPublishError('') }} className={`${btn} border border-white/15 text-white hover:bg-white/5`}>
+                    <button
+                      onClick={async () => {
+                        if (await save('unapprove')) {
+                          setStage('review')
+                          setPublishError('')
+                        }
+                      }}
+                      disabled={busy}
+                      className={`${btn} border border-white/15 text-white hover:bg-white/5`}
+                    >
                       Undo approval
                     </button>
                   </div>

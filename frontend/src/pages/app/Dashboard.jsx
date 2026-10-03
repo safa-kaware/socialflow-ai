@@ -1,39 +1,41 @@
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
-import { posts } from '../../data/posts'
+import { usePosts } from '../../data/usePosts'
 import StatusBadge from '../../components/app/StatusBadge'
 
-const count = (status) => posts.filter((p) => p.status === status).length
-const scored = posts.filter((p) => p.score !== null)
-const avgScore = scored.length
-  ? Math.round(scored.reduce((sum, p) => sum + p.score, 0) / scored.length)
-  : null
-
-const dayKey = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-const weeklyActivity = Array.from({ length: 7 }, (_, i) => {
-  const d = new Date()
-  d.setDate(d.getDate() - (6 - i))
-  return {
-    day: d.toLocaleDateString('en-US', { weekday: 'short' }),
-    generated: posts.filter((p) => p.createdAt === dayKey(d)).length,
-  }
-})
-
-const stats = [
-  { label: 'Total posts', value: posts.length },
-  { label: 'Drafts', value: count('draft') },
-  { label: 'Pending approval', value: count('needs_review') },
-  { label: 'Approved', value: count('approved') },
-  { label: 'Scheduled', value: count('scheduled') },
-  { label: 'Published', value: count('published') },
-  { label: 'Avg AI score', value: avgScore ?? '-' },
-]
+const pad = (n) => String(n).padStart(2, '0')
+const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 export default function Dashboard() {
-  const recent = [...posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
+  const { posts, loading, error } = usePosts()
+
+  const count = (status) => posts.filter((p) => p.status === status).length
+  const scored = posts.filter((p) => p.score !== null && p.score !== undefined)
+  const avgScore = scored.length
+    ? Math.round(scored.reduce((sum, p) => sum + p.score, 0) / scored.length)
+    : null
+
+  const weeklyActivity = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    return {
+      day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      generated: posts.filter((p) => p.createdAt === dayKey(d)).length,
+    }
+  })
+
+  const stats = [
+    { label: 'Total posts', value: posts.length },
+    { label: 'Drafts', value: count('draft') },
+    { label: 'Pending approval', value: count('needs_review') },
+    { label: 'Approved', value: count('approved') },
+    { label: 'Scheduled', value: count('scheduled') },
+    { label: 'Published', value: count('published') },
+    { label: 'Avg AI score', value: avgScore ?? '-' },
+  ]
+
+  const recent = posts.slice(0, 5)
 
   return (
     <div className="space-y-8">
@@ -41,6 +43,12 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
         <p className="text-sm text-slate-400">An overview of your content pipeline.</p>
       </div>
+
+      {error && (
+        <p className="rounded-lg bg-rose-500/10 p-3 text-sm text-rose-300">
+          Could not load posts: {error}
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((s) => (
@@ -94,7 +102,7 @@ export default function Dashboard() {
           </table>
           {recent.length === 0 && (
             <p className="py-6 text-center text-sm text-slate-400">
-              No posts yet. Posts you create will appear here.
+              {loading ? 'Loading...' : 'No posts yet. Posts you create will appear here.'}
             </p>
           )}
         </div>
