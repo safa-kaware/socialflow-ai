@@ -27,7 +27,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const b = $input.first().json.body || {};\nconst d = b.draft || {};\n\nif (!String(d.content || '').trim()) {\n  throw new Error('No content to publish');\n}\n\nconst tags = Array.isArray(d.hashtags) ? d.hashtags.join(' ') : '';\nconst parts = [d.title, d.content, d.callToAction, tags]\n  .map((s) => String(s || '').trim())\n  .filter(Boolean);\n\nconst text = parts.join('\\n\\n').slice(0, 4000);\n\nreturn [{ json: { text } }];"
+        "jsCode": "const b = $input.first().json.body || {};\nconst d = b.draft || {};\n\nif (!String(d.content || '').trim()) {\n  throw new Error('No content to publish');\n}\n\nconst tags = Array.isArray(d.hashtags) ? d.hashtags.join(' ') : '';\nconst parts = [d.title, d.hook, d.content, d.callToAction, tags]\n  .map((s) => String(s || '').trim())\n  .filter(Boolean);\n\nconst text = parts.join('\\n\\n').slice(0, 4000);\n\nreturn [{ json: { text } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -148,7 +148,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "9429dbc0-c201-4e0b-8f10-670c962bc1db",
+  "versionId": "57975e7d-7627-4ee7-b0bb-6ea1715596b5",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "3dc2a547aea11d90bed7029adae499e932a0a721777511ffa2056120e6180d06"
