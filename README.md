@@ -4,8 +4,8 @@
 
 SocialFlow AI is a full-stack web application that drafts a social media post with AI, reviews its own draft, lets a human approve or edit it, and publishes it to Telegram through an n8n workflow. It was built as a college project (*Project 4: AI Social Media Automation using n8n*) and extended into a deployed portfolio project.
 
-- **Live demo:** https://socialflow-ai-delta.vercel.app
-- **Source:** https://github.com/YOUR_USERNAME/socialflow-ai
+- **Live demo:** (https://socialflow-oh2whsi5c-safa-kawares-projects.vercel.app/)
+
 
 > Visitors can generate, review, edit and approve posts. Publishing to the live Telegram channel needs an owner passcode, so a public visitor cannot post to it.
 
