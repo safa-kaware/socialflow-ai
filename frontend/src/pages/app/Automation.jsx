@@ -12,7 +12,7 @@ const components = [
   { name: 'Regeneration', state: 'live', note: 'automatic retry, maximum 2 attempts' },
   { name: 'Approval', state: 'live', note: 'human approval in the web app, saved to the database' },
   { name: 'Telegram publishing', state: 'live', note: 'n8n workflow, owner passcode required' },
-  { name: 'Scheduling', state: 'progress', note: 'scheduling works in the app; the n8n workflow that sends due posts is being added' },
+ { name: 'Scheduling', state: 'planned', note: 'the calendar and scheduling code exist, but the n8n workflow that sends due posts is not built, so scheduling is switched off' },
   { name: 'Central error workflow', state: 'planned', note: 'Groq calls retry and Telegram failures are reported, but there is no dedicated error workflow yet' },
 ]
 
@@ -39,7 +39,7 @@ const workflows = [
   },
   {
     name: 'Scheduled publishing',
-    state: 'progress',
+    state: 'planned',
     text: 'Runs on a timer, finds due scheduled posts, publishes them and records the result.',
   },
   {

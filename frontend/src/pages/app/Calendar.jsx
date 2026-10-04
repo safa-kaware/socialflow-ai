@@ -6,6 +6,7 @@ import { usePasscode } from '../../lib/passcode'
 import PostDetailsModal from '../../components/app/PostDetailsModal'
 import PasscodeField from '../../components/app/PasscodeField'
 import ScheduleControls from '../../components/app/ScheduleControls'
+import { SCHEDULING_ENABLED } from '../../config'
 
 const pad = (n) => String(n).padStart(2, '0')
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -138,6 +139,12 @@ export default function Calendar() {
                 reload()
               }}
             />
+            {!SCHEDULING_ENABLED && (
+  <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+    Scheduling is not enabled in this version. This calendar will show scheduled posts once the
+    automation that publishes them is added.
+  </p>
+)}
             {actionError && <p className="text-sm text-rose-300">{actionError}</p>}
           </div>
         )}
