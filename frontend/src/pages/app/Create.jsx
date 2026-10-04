@@ -5,6 +5,25 @@ import TelegramPreview from '../../components/app/TelegramPreview'
 import ReviewPanel from '../../components/app/ReviewPanel'
 import DraftEditor from '../../components/app/DraftEditor'
 
+const PASS_KEY = 'socialflow_publish_passcode'
+
+const readPass = () => {
+  try {
+    return sessionStorage.getItem(PASS_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+const writePass = (value) => {
+  try {
+    if (value) sessionStorage.setItem(PASS_KEY, value)
+    else sessionStorage.removeItem(PASS_KEY)
+  } catch {
+    // storage unavailable: the passcode will simply be asked for again
+  }
+}
+
 const CONTENT_TYPES = ['Educational', 'Thought Leadership', 'Promotional', 'Announcement', 'Tips', 'Question', 'Story', 'Motivational']
 const TONES = ['Professional', 'Friendly', 'Inspirational', 'Technical', 'Conversational', 'Bold']
 const LENGTHS = ['Short', 'Medium', 'Long']
@@ -44,6 +63,7 @@ export default function Create() {
   const [stage, setStage] = useState('review')
   const [regenCount, setRegenCount] = useState(0)
   const [passcode, setPasscode] = useState('')
+  const [savedPass, setSavedPass] = useState(readPass)
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState('')
   const [published, setPublished] = useState(null)
@@ -100,18 +120,25 @@ export default function Create() {
   }
 
   async function onPublish() {
-    if (!passcode) {
+    const code = savedPass || passcode
+    if (!code) {
       setPublishError('Enter the publish passcode.')
       return
     }
     setPublishError('')
     setPublishing(true)
     try {
-      const data = await publishPost({ draft, passcode, postId })
+      const data = await publishPost({ draft, passcode: code, postId })
       setPublished(data)
       setStage('published')
       setPasscode('')
+      writePass(code)
+      setSavedPass(code)
     } catch (err) {
+      if (err.message === 'Invalid passcode') {
+        writePass('')
+        setSavedPass('')
+      }
       setPublishError(err.message)
     } finally {
       setPublishing(false)
@@ -138,7 +165,9 @@ export default function Create() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Create content</h1>
-        <p className="text-sm text-slate-400">Describe the post. AI drafts it and then reviews it. You decide what happens next.</p>
+        <p className="text-sm text-slate-400">
+          Describe the post. AI drafts it and then reviews it. You decide what happens next.
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -178,10 +207,22 @@ export default function Create() {
           </div>
 
           <Field label="Target audience">
-            <input className={inputCls} maxLength={150} placeholder="Engineering students" value={form.targetAudience} onChange={set('targetAudience')} />
+            <input
+              className={inputCls}
+              maxLength={150}
+              placeholder="Engineering students"
+              value={form.targetAudience}
+              onChange={set('targetAudience')}
+            />
           </Field>
           <Field label="Keywords">
-            <input className={inputCls} maxLength={200} placeholder="AI, coding, productivity" value={form.keywords} onChange={set('keywords')} />
+            <input
+              className={inputCls}
+              maxLength={200}
+              placeholder="AI, coding, productivity"
+              value={form.keywords}
+              onChange={set('keywords')}
+            />
           </Field>
 
           {error && (
@@ -215,7 +256,9 @@ export default function Create() {
           {result && draft && stage === 'rejected' && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
               <p className="font-semibold text-white">Draft rejected</p>
-              <p className="mt-1 text-sm text-slate-400">It was not published and is marked as rejected in your history.</p>
+              <p className="mt-1 text-sm text-slate-400">
+                It was not published and is marked as rejected in your history.
+              </p>
               <button onClick={startOver} className={`${btn} mt-4 bg-indigo-500 text-white hover:bg-indigo-400`}>
                 Start over
               </button>
@@ -266,7 +309,9 @@ export default function Create() {
               {stage === 'review' && (
                 <div className="flex flex-wrap gap-3">
                   <button
-                    onClick={async () => { if (await save('approve')) setStage('approved') }}
+                    onClick={async () => {
+                      if (await save('approve')) setStage('approved')
+                    }}
                     disabled={busy}
                     className={`${btn} bg-emerald-500 text-white hover:bg-emerald-400`}
                   >
@@ -288,7 +333,9 @@ export default function Create() {
                     Regenerate ({Math.max(regenLeft, 0)} left)
                   </button>
                   <button
-                    onClick={async () => { if (await save('reject')) setStage('rejected') }}
+                    onClick={async () => {
+                      if (await save('reject')) setStage('rejected')
+                    }}
                     disabled={busy}
                     className={`${btn} border border-rose-400/30 text-rose-300 hover:bg-rose-500/10`}
                   >
@@ -304,19 +351,37 @@ export default function Create() {
                     Your approval is saved. Publishing is protected by a passcode so only the owner
                     can post to the live channel.
                   </p>
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    className={inputCls}
-                    placeholder="Publish passcode"
-                    value={passcode}
-                    onChange={(e) => setPasscode(e.target.value)}
-                  />
+
+                  {savedPass ? (
+                    <p className="text-xs text-slate-400">
+                      Publishing is unlocked for this browser session.{' '}
+                      <button
+                        className="underline hover:text-white"
+                        onClick={() => {
+                          writePass('')
+                          setSavedPass('')
+                        }}
+                      >
+                        Lock again
+                      </button>
+                    </p>
+                  ) : (
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      className={inputCls}
+                      placeholder="Publish passcode (asked once per session)"
+                      value={passcode}
+                      onChange={(e) => setPasscode(e.target.value)}
+                    />
+                  )}
+
                   {publishError && (
                     <p className="flex items-start gap-2 rounded-lg bg-rose-500/10 p-3 text-sm text-rose-300">
                       <AlertCircle size={16} className="mt-0.5 shrink-0" /> Publishing failed: {publishError}
                     </p>
                   )}
+
                   <div className="flex gap-3">
                     <button
                       onClick={onPublish}
