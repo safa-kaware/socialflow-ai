@@ -2,47 +2,20 @@ import {
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
-import { posts } from '../../data/posts'
+import { usePosts } from '../../data/usePosts'
 import { STATUS } from '../../data/status'
 
 const COLORS = {
-  draft: '#94a3b8', needs_review: '#fbbf24', approved: '#34d399', scheduled: '#38bdf8',
-  published: '#818cf8', rejected: '#fb7185', failed: '#f87171',
+  draft: '#94a3b8',
+  needs_review: '#fbbf24',
+  approved: '#34d399',
+  scheduled: '#38bdf8',
+  published: '#818cf8',
+  rejected: '#fb7185',
+  failed: '#f87171',
+  regenerated: '#a78bfa',
 }
 const tooltipStyle = { background: '#0f172a', border: '1px solid #ffffff20', borderRadius: 8 }
-
-const count = (status) => posts.filter((p) => p.status === status).length
-const scored = posts.filter((p) => p.score !== null)
-const avgScore = scored.length
-  ? Math.round(scored.reduce((sum, p) => sum + p.score, 0) / scored.length)
-  : 0
-
-const stats = [
-  { label: 'Posts generated', value: posts.length },
-  { label: 'Approved', value: count('approved') },
-  { label: 'Rejected', value: count('rejected') },
-  { label: 'Scheduled', value: count('scheduled') },
-  { label: 'Published', value: count('published') },
-  { label: 'Avg AI score', value: scored.length ? avgScore : '-' },
-]
-
-const overTime = Object.entries(
-  posts.reduce((acc, p) => {
-    acc[p.createdAt] = (acc[p.createdAt] || 0) + 1
-    return acc
-  }, {})
-)
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([date, total]) => ({ date: date.slice(5), total }))
-
-const byStatus = Object.entries(STATUS)
-  .map(([key, s]) => ({ name: s.label, value: count(key), color: COLORS[key] }))
-  .filter((d) => d.value > 0)
-
-const byPlatform = ['Telegram'].map((name) => ({
-  name,
-  posts: posts.filter((p) => p.platform === name).length,
-}))
 
 function Card({ title, children }) {
   return (
@@ -53,8 +26,44 @@ function Card({ title, children }) {
   )
 }
 
-
 export default function Analytics() {
+  const { posts, loading, error } = usePosts()
+
+  const count = (status) => posts.filter((p) => p.status === status).length
+  const scored = posts.filter((p) => p.score !== null && p.score !== undefined)
+  const avgScore = scored.length
+    ? Math.round(scored.reduce((sum, p) => sum + p.score, 0) / scored.length)
+    : null
+
+  const stats = [
+    { label: 'Posts generated', value: posts.length },
+    { label: 'Approved', value: count('approved') },
+    { label: 'Rejected', value: count('rejected') },
+    { label: 'Regenerated', value: count('regenerated') },
+    { label: 'Scheduled', value: count('scheduled') },
+    { label: 'Published', value: count('published') },
+    { label: 'Failed', value: count('failed') },
+    { label: 'Avg AI score', value: avgScore ?? '-' },
+  ]
+
+  const overTime = Object.entries(
+    posts.reduce((acc, p) => {
+      acc[p.createdAt] = (acc[p.createdAt] || 0) + 1
+      return acc
+    }, {})
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, total]) => ({ date: date.slice(5), total }))
+
+  const byStatus = Object.entries(STATUS)
+    .map(([key, s]) => ({ name: s.label, value: count(key), color: COLORS[key] }))
+    .filter((d) => d.value > 0)
+
+  const byPlatform = ['Telegram'].map((name) => ({
+    name,
+    posts: posts.filter((p) => p.platform === name).length,
+  }))
+
   return (
     <div className="space-y-8">
       <div>
@@ -62,7 +71,11 @@ export default function Analytics() {
         <p className="text-sm text-slate-400">How your content pipeline is performing.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+      {error && (
+        <p className="rounded-lg bg-rose-500/10 p-3 text-sm text-rose-300">Could not load posts: {error}</p>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <p className="text-sm text-slate-400">{s.label}</p>
@@ -71,13 +84,14 @@ export default function Analytics() {
         ))}
       </div>
       <p className="-mt-4 text-xs text-slate-500">
-        AI score is an AI-generated estimate. A "regenerated" count is added in Step 9, once regeneration exists to be counted.
+        AI score is an AI-generated estimate. Figures cover the posts created in this browser.
       </p>
-      {posts.length === 0 && (
-  <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
-    No data yet. Charts fill in once posts are saved.
-  </p>
-)}
+
+      {!loading && posts.length === 0 && !error && (
+        <p className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+          No data yet. Charts fill in once you create posts.
+        </p>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Posts created over time">

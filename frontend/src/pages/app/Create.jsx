@@ -1,28 +1,12 @@
 import { useState } from 'react'
 import { Sparkles, Loader2, AlertCircle, Check, Pencil, RefreshCw, X, Send } from 'lucide-react'
 import { generatePost, publishPost, updatePost } from '../../lib/api'
+import { usePasscode } from '../../lib/passcode'
 import TelegramPreview from '../../components/app/TelegramPreview'
 import ReviewPanel from '../../components/app/ReviewPanel'
 import DraftEditor from '../../components/app/DraftEditor'
-
-const PASS_KEY = 'socialflow_publish_passcode'
-
-const readPass = () => {
-  try {
-    return sessionStorage.getItem(PASS_KEY) || ''
-  } catch {
-    return ''
-  }
-}
-
-const writePass = (value) => {
-  try {
-    if (value) sessionStorage.setItem(PASS_KEY, value)
-    else sessionStorage.removeItem(PASS_KEY)
-  } catch {
-    // storage unavailable: the passcode will simply be asked for again
-  }
-}
+import PasscodeField from '../../components/app/PasscodeField'
+import ScheduleControls from '../../components/app/ScheduleControls'
 
 const CONTENT_TYPES = ['Educational', 'Thought Leadership', 'Promotional', 'Announcement', 'Tips', 'Question', 'Story', 'Motivational']
 const TONES = ['Professional', 'Friendly', 'Inspirational', 'Technical', 'Conversational', 'Bold']
@@ -43,6 +27,7 @@ function Field({ label, children }) {
 }
 
 export default function Create() {
+  const pass = usePasscode()
   const [form, setForm] = useState({
     topic: '',
     platform: 'Telegram',
@@ -62,11 +47,10 @@ export default function Create() {
   const [edited, setEdited] = useState(false)
   const [stage, setStage] = useState('review')
   const [regenCount, setRegenCount] = useState(0)
-  const [passcode, setPasscode] = useState('')
-  const [savedPass, setSavedPass] = useState(readPass)
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState('')
   const [published, setPublished] = useState(null)
+  const [scheduledFor, setScheduledFor] = useState('')
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -111,6 +95,7 @@ export default function Create() {
       setEdited(false)
       setStage('review')
       setPublished(null)
+      setScheduledFor('')
       setRegenCount((c) => (isRegen ? c + 1 : 0))
     } catch (err) {
       setError(err.message)
@@ -120,25 +105,19 @@ export default function Create() {
   }
 
   async function onPublish() {
-    const code = savedPass || passcode
-    if (!code) {
-      setPublishError('Enter the publish passcode.')
+    if (!pass.code) {
+      setPublishError('Enter the owner passcode.')
       return
     }
     setPublishError('')
     setPublishing(true)
     try {
-      const data = await publishPost({ draft, passcode: code, postId })
+      const data = await publishPost({ draft, passcode: pass.code, postId })
       setPublished(data)
       setStage('published')
-      setPasscode('')
-      writePass(code)
-      setSavedPass(code)
+      pass.accept(pass.code)
     } catch (err) {
-      if (err.message === 'Invalid passcode') {
-        writePass('')
-        setSavedPass('')
-      }
+      if (err.message === 'Invalid passcode') pass.forget()
       setPublishError(err.message)
     } finally {
       setPublishing(false)
@@ -154,6 +133,7 @@ export default function Create() {
     setStage('review')
     setRegenCount(0)
     setPublished(null)
+    setScheduledFor('')
     setPublishError('')
     setError('')
   }
@@ -278,6 +258,19 @@ export default function Create() {
             </div>
           )}
 
+          {result && draft && stage === 'scheduled' && (
+            <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-6">
+              <p className="font-semibold text-sky-300">Scheduled</p>
+              <p className="mt-1 text-sm text-slate-300">
+                This post is set for {new Date(scheduledFor).toLocaleString()}. The automation
+                workflow publishes it at that time. You can see or cancel it on the Calendar page.
+              </p>
+              <button onClick={startOver} className={`${btn} mt-4 bg-indigo-500 text-white hover:bg-indigo-400`}>
+                Create another
+              </button>
+            </div>
+          )}
+
           {result && draft && stage === 'editing' && (
             <DraftEditor
               draft={draft}
@@ -348,33 +341,11 @@ export default function Create() {
                 <div className="space-y-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5">
                   <p className="font-semibold text-emerald-300">Approved</p>
                   <p className="text-xs text-slate-400">
-                    Your approval is saved. Publishing is protected by a passcode so only the owner
-                    can post to the live channel.
+                    Your approval is saved. Publishing and scheduling are protected by an owner
+                    passcode so only the owner can post to the live channel.
                   </p>
 
-                  {savedPass ? (
-                    <p className="text-xs text-slate-400">
-                      Publishing is unlocked for this browser session.{' '}
-                      <button
-                        className="underline hover:text-white"
-                        onClick={() => {
-                          writePass('')
-                          setSavedPass('')
-                        }}
-                      >
-                        Lock again
-                      </button>
-                    </p>
-                  ) : (
-                    <input
-                      type="password"
-                      autoComplete="off"
-                      className={inputCls}
-                      placeholder="Publish passcode (asked once per session)"
-                      value={passcode}
-                      onChange={(e) => setPasscode(e.target.value)}
-                    />
-                  )}
+                  <PasscodeField pass={pass} />
 
                   {publishError && (
                     <p className="flex items-start gap-2 rounded-lg bg-rose-500/10 p-3 text-sm text-rose-300">
@@ -389,7 +360,7 @@ export default function Create() {
                       className={`${btn} bg-indigo-500 text-white hover:bg-indigo-400`}
                     >
                       {publishing ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-                      {publishing ? 'Publishing...' : 'Publish to Telegram'}
+                      {publishing ? 'Publishing...' : 'Publish now'}
                     </button>
                     <button
                       onClick={async () => {
@@ -403,6 +374,24 @@ export default function Create() {
                     >
                       Undo approval
                     </button>
+                  </div>
+
+                  <div className="border-t border-white/10 pt-3">
+                    <p className="mb-2 text-sm font-medium text-white">Or schedule it</p>
+                    {postId ? (
+                      <ScheduleControls
+                        postId={postId}
+                        pass={pass}
+                        onScheduled={(iso) => {
+                          setScheduledFor(iso)
+                          setStage('scheduled')
+                        }}
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-400">
+                        Scheduling needs the draft to be saved to the database first.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

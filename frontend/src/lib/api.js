@@ -37,3 +37,5 @@ export const publishPost = ({ draft, passcode, postId }) =>
 export const listPosts = async () => (await request('/api/posts')).posts
 export const updatePost = ({ id, action, draft }) =>
   request('/api/posts', { method: 'POST', body: { id, action, draft } })
+export const schedulePost = ({ postId, passcode, scheduledFor }) =>
+  request('/api/schedule', { method: 'POST', body: { postId, passcode, scheduledFor } })

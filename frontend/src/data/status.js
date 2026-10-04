@@ -6,4 +6,5 @@ export const STATUS = {
   published: { label: 'Published', cls: 'bg-indigo-500/15 text-indigo-300' },
   rejected: { label: 'Rejected', cls: 'bg-rose-500/15 text-rose-300' },
   failed: { label: 'Failed', cls: 'bg-red-500/15 text-red-300' },
+  regenerated: { label: 'Regenerated', cls: 'bg-violet-500/15 text-violet-300' },
 }

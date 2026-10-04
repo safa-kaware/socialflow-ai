@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search } from 'lucide-react'
-import { posts } from '../../data/posts'
+import { usePosts } from '../../data/usePosts'
 import { STATUS } from '../../data/status'
 import StatusBadge from '../../components/app/StatusBadge'
 import PostDetailsModal from '../../components/app/PostDetailsModal'
@@ -9,6 +9,7 @@ const inputCls =
   'rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-indigo-400'
 
 export default function History() {
+  const { posts, loading, error } = usePosts()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [platform, setPlatform] = useState('all')
@@ -20,7 +21,7 @@ export default function History() {
     if (search && !p.topic.toLowerCase().includes(search.toLowerCase())) return false
     if (status !== 'all' && p.status !== status) return false
     if (platform !== 'all' && p.platform !== platform) return false
-    if (minScore && (p.score === null || p.score < Number(minScore))) return false
+    if (minScore && (p.score === null || p.score === undefined || p.score < Number(minScore))) return false
     if (dateFrom && p.createdAt < dateFrom) return false
     return true
   })
@@ -33,11 +34,19 @@ export default function History() {
     setDateFrom('')
   }
 
+  const emptyText = loading
+    ? 'Loading...'
+    : error
+      ? `Could not load posts: ${error}`
+      : posts.length === 0
+        ? 'No posts yet. Posts you create will appear here.'
+        : 'No posts match these filters.'
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">History</h1>
-        <p className="text-sm text-slate-400">Every post you have created.</p>
+        <p className="text-sm text-slate-400">Every post you have created in this browser.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -61,7 +70,6 @@ export default function History() {
         <select className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)}>
           <option value="all">All platforms</option>
           <option value="Telegram">Telegram</option>
-          
         </select>
 
         <input
@@ -86,9 +94,7 @@ export default function History() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         {filtered.length === 0 ? (
-          <p className="py-10 text-center text-slate-400">
-  {posts.length === 0 ? 'No posts yet. Posts you create will appear here.' : 'No posts match these filters.'}
-</p>
+          <p className="py-10 text-center text-slate-400">{emptyText}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
